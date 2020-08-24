@@ -34,7 +34,6 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -45,10 +44,11 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
 
 
     private transient BaseClient client;
-    private int qos = 0;
     private String topicName = StringUtils.EMPTY;
-    private byte[] publishMessage;
     private boolean retained;
+    private String messageInputType;
+    private long timeout;
+
     private AtomicInteger publishedMessageCount = new AtomicInteger(0);
     private static final String nameLabel = "MQTT Publisher";
     private static final String lineSeparator = System.getProperty("line.separator");
@@ -62,6 +62,7 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
     private static final String RETAINED = "mqtt.message.retained";
     private static final String CLEAN_SESSION = "mqtt.clean.session";
     private static final String KEEP_ALIVE = "mqtt.keep.alive";
+    private static final String PUBLISH_TIMEOUT = "mqtt.publish.timeout";
     private static final String USERNAME = "mqtt.auth.username";
     private static final String PASSWORD = "mqtt.auth.password";
     private static final String QOS = "mqtt.qos";
@@ -94,6 +95,10 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
         return getPropertyAsInt(KEEP_ALIVE);
     }
 
+    public int getPublishTimeout() {
+        return getPropertyAsInt(PUBLISH_TIMEOUT);
+    }
+
     public String getUsername() {
         return getPropertyAsString(USERNAME);
     }
@@ -118,7 +123,7 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
         return getPropertyAsString(MESSAGE_VALUE);
     }
 
-    public String getNameLabel() {
+    private String getNameLabel() {
         return nameLabel;
     }
 
@@ -145,6 +150,10 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
 
     public void setKeepAlive(String keepAlive) {
         setProperty(KEEP_ALIVE, keepAlive);
+    }
+
+    public void setPublishTimeout(String publishTimeout) {
+        setProperty(PUBLISH_TIMEOUT, publishTimeout);
     }
 
     public void setUsername(String username) {
@@ -174,16 +183,23 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
     public PublisherSampler() {
     }
 
+    @Override
+    public void testStarted() {
+    }
+
+    @Override
+    public void testStarted(String s) {
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     public void testEnded() {
-        log.debug("Thread ended " + new Date());
+        log.debug("Test ended, clearing client pool");
         try {
             ClientPool.clearClient();
         } catch (IOException e) {
-            e.printStackTrace();
             log.error(e.getMessage(), e);
         }
     }
@@ -196,63 +212,27 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
         testEnded();
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void testStarted() {
-        if (log.isDebugEnabled()) {
-            log.debug("Thread started " + new Date());
-            log.debug("MQTT PublishSampler: ["
-                      + Thread.currentThread().getName() + "], hashCode=["
-                      + hashCode() + "]");
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void testStarted(String arg0) {
-        testStarted();
-    }
-    
-    /**
-     * Initializes the MQTT client for publishing.
-     *
-     * @throws MqttException
-     */
-    private void initClient() throws MqttException, IOException {
+    private void initClient() throws MqttException {
         try {
             String brokerURL = getBrokerUrl();
             String clientId = getClientId();
-            topicName = getTopicName();
-            retained = isMessageRetained();
             boolean isCleanSession = isCleanSession();
             int keepAlive = getKeepAlive();
             String userName = getUsername();
             String password = getPassword();
             String clientType = getClientType();
-            String messageInputType = getMessageInputType();
-            
+
+            topicName = getTopicName();
+            retained = isMessageRetained();
+            messageInputType = getMessageInputType();
+            timeout = getPublishTimeout();
+            if (timeout > 0) {
+                timeout = timeout * 1000L;
+            }
+
             // Generating client ID if empty
             if (StringUtils.isEmpty(clientId)) {
                 clientId = Utils.UUIDGenerator();
-            }
-            
-            // Quality
-            if (Constants.MQTT_AT_MOST_ONCE.equals(getQOS())) {
-                qos = 0;
-            } else if (Constants.MQTT_AT_LEAST_ONCE.equals(getQOS())) {
-                qos = 1;
-            } else if (Constants.MQTT_EXACTLY_ONCE.equals(getQOS())) {
-                qos = 2;
-            }
-            
-            if (Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT.equals(messageInputType)) {
-                publishMessage = getMessageValue().getBytes();
-            } else if (Constants.MQTT_MESSAGE_INPUT_TYPE_FILE.equals(messageInputType)) {
-                publishMessage = FileUtils.readFileToByteArray(new File(getMessageValue()));
             }
             
             if (Constants.MQTT_BLOCKING_CLIENT.equals(clientType)) {
@@ -265,10 +245,7 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
                 ClientPool.addClient(client);
             }
         } catch (MqttException e) {
-            log.error(e.getMessage(), e);
-            throw e;
-        } catch (IOException e) {
-            log.error(e.getMessage(), e);
+            log.error(getClientId() + ": " +   e.getMessage(), e);
             throw e;
         }
     }
@@ -279,7 +256,6 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
     @Override
     public SampleResult sample(Entry entry) {
         SampleResult result = new SampleResult();
-        result.setSampleLabel(getNameLabel());
         result.sampleStart();
         if (client == null || !client.isConnected()) {
             try {
@@ -295,27 +271,45 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
                 result.setDataType(org.apache.jmeter.samplers.SampleResult.TEXT);
                 result.setResponseCode("FAILED");
                 return result;
-            } catch (IOException e) {
-                result.sampleEnd(); // stop stopwatch
-                result.setSuccessful(false);
-                // get stack trace as a String to return as document data
-                java.io.StringWriter stringWriter = new java.io.StringWriter();
-                e.printStackTrace(new java.io.PrintWriter(stringWriter));
-                result.setResponseData(stringWriter.toString(), null);
-                result.setResponseMessage("Unable publish messages." + lineSeparator + "Exception: " + e.toString());
-                result.setDataType(org.apache.jmeter.samplers.SampleResult.TEXT);
-                result.setResponseCode("FAILED");
-                return result;
             }
         }
+        result.setSampleLabel(getNameLabel() + "::" + getClientId());
+
         try {
-            client.publish(topicName, qos, publishMessage, retained);
+            // Quality
+            int qos;
+            if (Constants.MQTT_AT_MOST_ONCE.equals(getQOS())) {
+                qos = 0;
+            } else if (Constants.MQTT_AT_LEAST_ONCE.equals(getQOS())) {
+                qos = 1;
+            } else if (Constants.MQTT_EXACTLY_ONCE.equals(getQOS())) {
+                qos = 2;
+            } else {
+                qos = 0;
+            }
+
+            byte[] publishMessage;
+            if (Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT.equals(messageInputType)) {
+                publishMessage = getMessageValue().getBytes();
+            } else if (Constants.MQTT_MESSAGE_INPUT_TYPE_FILE.equals(messageInputType)) {
+                //TODO how to handle if file not available (what happens @end of CSV
+                String filename = getMessageValue();
+                if (log.isDebugEnabled()) log.debug(getClientId() + " reading file: " + filename);
+                publishMessage = FileUtils.readFileToByteArray(new File(filename));
+            } else {
+                publishMessage = new byte[0];
+            }
+
+            long durationNanos = client.publish(topicName, qos, publishMessage, retained, timeout);
             result.setSuccessful(true);
+            result.setLatency(durationNanos / 1000000);
+            result.setBytes(publishMessage.length);
+            result.setBodySize(publishMessage.length);
             result.sampleEnd(); // stop stopwatch
             result.setResponseMessage("Sent " + publishedMessageCount.incrementAndGet() + " messages total");
             result.setResponseCode("OK");
             return result;
-        } catch (MqttException e) {
+        } catch (MqttException | IOException e) {
             result.sampleEnd(); // stop stopwatch
             result.setSuccessful(false);
             // get stack trace as a String to return as document data

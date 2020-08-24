@@ -120,9 +120,10 @@ public class BlockingClient extends BaseClient {
 
     /**
      * {@inheritDoc}
+     * @return
      */
     @Override
-    public void publish(String topicName, int qos, byte[] payload, boolean isRetained) throws MqttException {
+    public long publish(String topicName, int qos, byte[] payload, boolean isRetained, long timeout) throws MqttException {
         // Create and configure a message
         MqttMessage message = new MqttMessage(payload);
         message.setRetained(isRetained);
@@ -131,14 +132,19 @@ public class BlockingClient extends BaseClient {
         // Send the message to the server, control is not returned until
         // it has been delivered to the server meeting the specified
         // quality of service.
+        long start = System.nanoTime();
+        client.setTimeToWait(timeout);
         client.publish(topicName, message);
+        long duration = System.nanoTime() - start;
+        if (log.isDebugEnabled()) log.debug(client.getClientId() + " published to " + topicName);
+        return duration;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void subscribe(String topicName, int qos) throws MqttException {
+    public void subscribe(String topicName, int qos, long timeout) throws MqttException {
         mqttMessageStorage = new ConcurrentLinkedQueue<Message>();
         receivedMessageCounter = new AtomicLong(0);
 
@@ -148,6 +154,7 @@ public class BlockingClient extends BaseClient {
         // be downgraded to 1 when delivering to the client but messages published at 1 and 0
         // will be received at the same level they were published at.
         log.info("Subscribing to topic \"" + topicName + "\" qos " + qos);
+        client.setTimeToWait(timeout);
         client.subscribe(topicName, qos);
     }
 

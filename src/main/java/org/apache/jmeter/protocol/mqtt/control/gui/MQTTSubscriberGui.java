@@ -16,7 +16,6 @@
 
 package org.apache.jmeter.protocol.mqtt.control.gui;
 
-import org.apache.jmeter.gui.util.JLabeledRadioI18N;
 import org.apache.jmeter.gui.util.VerticalPanel;
 import org.apache.jmeter.protocol.mqtt.sampler.SubscriberSampler;
 import org.apache.jmeter.protocol.mqtt.utilities.Constants;
@@ -25,7 +24,6 @@ import org.apache.jmeter.samplers.gui.AbstractSamplerGui;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jorphan.gui.JLabeledPasswordField;
 import org.apache.jorphan.gui.JLabeledTextField;
-import org.apache.jorphan.logging.LoggingManager;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -40,12 +38,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 /**
- * This is the MQTT Sibscriber Sampler GUI class. All swing components of the UI are included in this class.
+ * This is the MQTT Subscriber Sampler GUI class. All swing components of the UI are included in this class.
  */
 public class MQTTSubscriberGui extends AbstractSamplerGui implements ActionListener {
 
     private static final long serialVersionUID = 240L;
-    private static final org.apache.log.Logger log = LoggingManager.getLoggerForClass();
 
     private static final String[] QOS_TYPES_ITEMS = {Constants.MQTT_AT_MOST_ONCE, Constants.MQTT_AT_LEAST_ONCE, Constants.MQTT_EXACTLY_ONCE};
     private static final String[] CLIENT_TYPES_ITEMS = {Constants.MQTT_BLOCKING_CLIENT, Constants.MQTT_ASYNC_CLIENT};
@@ -59,13 +56,14 @@ public class MQTTSubscriberGui extends AbstractSamplerGui implements ActionListe
     private final JCheckBox cleanSession = new JCheckBox(Constants.MQTT_CLEAN_SESSION, false);
 
     private final JLabeledTextField mqttKeepAlive = new JLabeledTextField(Constants.MQTT_KEEP_ALIVE);
+    private final JLabeledTextField subscribeTimeout = new JLabeledTextField(Constants.SUBSCRIBE_TIMEOUT);
 
     private final JLabeledTextField mqttUser = new JLabeledTextField(Constants.MQTT_USERNAME);
     private final JLabeledTextField mqttPwd = new JLabeledPasswordField(Constants.MQTT_PASSWORD);
     private final JButton resetUserNameAndPassword = new JButton(Constants.MQTT_RESET_USERNAME_PASSWORD);
 
     private final JLabeledRadioI18N typeQoSValue = new JLabeledRadioI18N(Constants.MQTT_QOS, QOS_TYPES_ITEMS, Constants.MQTT_AT_MOST_ONCE);
-    private final JLabeledRadioI18N typeClientValue = new JLabeledRadioI18N(Constants.MQTT_CLIENT_TYPES, CLIENT_TYPES_ITEMS,
+    private final JLabeledRadioI18N typeClientValue = new JLabeledRadioI18N("Client Types:", CLIENT_TYPES_ITEMS,
             Constants.MQTT_BLOCKING_CLIENT);
 
     public MQTTSubscriberGui() {
@@ -113,6 +111,7 @@ public class MQTTSubscriberGui extends AbstractSamplerGui implements ActionListe
         sampler.setTopicName(mqttDestination.getText());
         sampler.setCleanSession(cleanSession.isSelected());
         sampler.setKeepAlive(mqttKeepAlive.getText());
+        sampler.setSubscribeTimeout(subscribeTimeout.getText());
         sampler.setUsername(mqttUser.getText());
         sampler.setPassword(mqttPwd.getText());
         sampler.setQOS(typeQoSValue.getText());
@@ -140,6 +139,7 @@ public class MQTTSubscriberGui extends AbstractSamplerGui implements ActionListe
         ControlPanel.add(createDestinationPane());
         ControlPanel.add(cleanSession);
         ControlPanel.add(createKeepAlivePane());
+        ControlPanel.add(createTimeoutPane());
         ControlPanel.add(createAuthPane());
         ControlPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.gray),
                 "Connection Info"));
@@ -194,6 +194,7 @@ public class MQTTSubscriberGui extends AbstractSamplerGui implements ActionListe
         mqttDestination.setText(sampler.getTopicName());
         cleanSession.setSelected(sampler.isCleanSession());
         mqttKeepAlive.setText(Integer.toString(sampler.getKeepAlive()));
+        subscribeTimeout.setText(Integer.toString(sampler.getSubscribeTimeout()));
         mqttUser.setText(sampler.getUsername());
         mqttPwd.setText(sampler.getPassword());
         typeQoSValue.setText(sampler.getQOS());
@@ -237,6 +238,23 @@ public class MQTTSubscriberGui extends AbstractSamplerGui implements ActionListe
         TPanel.add(Box.createHorizontalStrut(100));
         panel.add(TPanel);
         mqttKeepAlive.setText(Constants.MQTT_KEEP_ALIVE_DEFAULT);
+        return panel;
+    }
+
+    /**
+     * Creates the mqtt timeout panel.
+     *
+     * @return The timeout panel.
+     */
+    private JPanel createTimeoutPane() {
+        JPanel panel = new VerticalPanel(); //new BorderLayout(3, 0)
+        subscribeTimeout.setLayout((new BoxLayout(subscribeTimeout, BoxLayout.X_AXIS)));
+        panel.add(subscribeTimeout);
+        JPanel TPanel = new JPanel();
+        TPanel.setLayout(new BoxLayout(TPanel, BoxLayout.X_AXIS));
+        TPanel.add(Box.createHorizontalStrut(100));
+        panel.add(TPanel);
+        subscribeTimeout.setText(Constants.SUBSCRIBE_TIMEOUT_DEFAULT);
         return panel;
     }
 

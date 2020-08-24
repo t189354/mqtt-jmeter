@@ -44,6 +44,7 @@ import java.util.Date;
 public class SubscriberSampler extends AbstractSampler implements Interruptible, ThreadListener, TestStateListener {
 
     private transient BaseClient client;
+    private long timeout;
     private static final long serialVersionUID = 240L;
     private static final String lineSeparator = System.getProperty("line.separator");
     private MqttException exceptionOccurred = null;
@@ -57,6 +58,7 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
     private static final String TOPIC_NAME = "mqtt.topic.name";
     private static final String CLEAN_SESSION = "mqtt.clean.session";
     private static final String KEEP_ALIVE = "mqtt.keep.alive";
+    private static final String SUBSCRIBE_TIMEOUT = "mqtt.subscribe.timeout";
     private static final String USERNAME = "mqtt.auth.username";
     private static final String PASSWORD = "mqtt.auth.password";
     private static final String QOS = "mqtt.qos";
@@ -83,6 +85,10 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
         return getPropertyAsInt(KEEP_ALIVE);
     }
 
+    public int getSubscribeTimeout() {
+        return getPropertyAsInt(SUBSCRIBE_TIMEOUT);
+    }
+
     public String getUsername() {
         return getPropertyAsString(USERNAME);
     }
@@ -99,7 +105,7 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
         return getPropertyAsString(CLIENT_TYPE);
     }
 
-    public String getNameLabel() {
+    private String getNameLabel() {
         return nameLabel;
     }
 
@@ -136,6 +142,10 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
 
     public void setClientType(String clientType) {
         setProperty(CLIENT_TYPE, clientType.trim());
+    }
+
+    public void setSubscribeTimeout(String subscribeTimeout) {
+        setProperty(SUBSCRIBE_TIMEOUT, subscribeTimeout);
     }
 
     public SubscriberSampler() {
@@ -188,12 +198,6 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
      */
     @Override
     public void testStarted() {
-        if (log.isDebugEnabled()) {
-            log.debug("Thread ended " + new Date());
-            log.debug("MQTT SubscriberSampler: ["
-                      + Thread.currentThread().getName() + "], hashCode=["
-                      + hashCode() + "]");
-        }
     }
 
     /**
@@ -201,15 +205,6 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
      */
     @Override
     public void testStarted(String arg0) {
-        testStarted();
-    }
-
-    private void logThreadStart() {
-        if (log.isDebugEnabled()) {
-            log.debug("Thread started " + new Date());
-            log.debug("MQTTSampler: [" + Thread.currentThread().getName()
-                      + "], hashCode=[" + hashCode() + "]");
-        }
     }
 
     /**
@@ -218,7 +213,6 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
     @Override
     public void threadStarted() {
         interrupted = false;
-        logThreadStart();
         if (client == null) {
             try {
                 if (validate()) {
@@ -264,14 +258,21 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
             clientId = Utils.UUIDGenerator();
         }
 
+        timeout = getSubscribeTimeout();
+        if (timeout > 0) {
+            timeout = timeout * 1000L;
+        }
+
         // Quality
-        int qos = 0;
+        int qos;
         if (Constants.MQTT_AT_MOST_ONCE.equals(getQOS())) {
             qos = 0;
         } else if (Constants.MQTT_AT_LEAST_ONCE.equals(getQOS())) {
             qos = 1;
         } else if (Constants.MQTT_EXACTLY_ONCE.equals(getQOS())) {
             qos = 2;
+        } else{
+            qos = 0;
         }
 
         exceptionOccurred = null;
@@ -284,7 +285,7 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
             }
 
             if (client != null) {
-                client.subscribe(topicName, qos);
+                client.subscribe(topicName, qos, timeout);
                 ClientPool.addClient(client);
             }
 
@@ -301,7 +302,7 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
     @Override
     public SampleResult sample(Entry entry) {
         SampleResult result = new SampleResult();
-        result.setSampleLabel(getNameLabel());
+        result.setSampleLabel(getNameLabel() + "::" + getClientId());
         result.sampleStart();
 
         if (null != exceptionOccurred) {
@@ -313,8 +314,13 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
             return result;
         }
 
+        long endTime = Long.MAX_VALUE;
+        if (timeout > 0) {
+            endTime = System.currentTimeMillis() + timeout;
+        }
         Message receivedMessage;
-        while (!interrupted && null != client.getReceivedMessages() && null != client.getReceivedMessageCounter()) {
+        while (!interrupted && null != client.getReceivedMessages() && null != client.getReceivedMessageCounter()
+                && System.currentTimeMillis() < endTime) {
             receivedMessage = client.getReceivedMessages().poll();
             if (receivedMessage != null) {
                 client.getReceivedMessageCounter().incrementAndGet();
@@ -331,6 +337,12 @@ public class SubscriberSampler extends AbstractSampler implements Interruptible,
                 result.setResponseData(receivedMessage.getPayload());
                 result.setResponseCodeOK();
                 return result;
+            }
+            else {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException ignored) {
+                }
             }
         }
 

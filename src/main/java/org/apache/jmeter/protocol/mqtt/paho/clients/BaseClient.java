@@ -31,8 +31,8 @@ public abstract class BaseClient implements MqttCallback, Closeable {
     protected ConcurrentLinkedQueue<Message> mqttMessageStorage = null;
     protected AtomicLong receivedMessageCounter = null;
 
-    public abstract void publish(String topicName, int qos, byte[] payload, boolean isRetained) throws MqttException;
-    public abstract void subscribe(String topicName, int qos) throws MqttException;
+    public abstract long publish(String topicName, int qos, byte[] payload, boolean isRetained, long timeout) throws MqttException;
+    public abstract void subscribe(String topicName, int qos, long timeout) throws MqttException;
     public abstract void disconnect() throws MqttException;
     public abstract  boolean isConnected();
 

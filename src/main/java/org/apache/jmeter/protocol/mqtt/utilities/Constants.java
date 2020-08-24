@@ -28,12 +28,12 @@ public final class Constants {
     public static final String MQTT_CLEAN_SESSION = "Clean Session";
     public static final String MQTT_CLIENT_ID = "Client ID";
     public static final String MQTT_CLIENT_ID_GENERATOR = "Generate ID";
-    public static final String MQTT_CLIENT_TYPES = "mqtt_client_types";
+//    public static final String MQTT_CLIENT_TYPES = "mqtt_client_types";
     public static final String MQTT_EXACTLY_ONCE = "mqtt_exactly_once";
     public static final String MQTT_FILE = "File";
     public static final String MQTT_KEEP_ALIVE = "Keep Alive";
     public static final String MQTT_KEEP_ALIVE_DEFAULT = "0";
-    public static final String MQTT_MESSAGE_INPUT_TYPE = "mqtt_message_input_type";
+//    public static final String MQTT_MESSAGE_INPUT_TYPE = "mqtt_message_input_type";
     public static final String MQTT_MESSAGE_INPUT_TYPE_FILE = "mqtt_message_input_type_file";
     public static final String MQTT_MESSAGE_INPUT_TYPE_TEXT = "mqtt_message_input_type_text";
     public static final String MQTT_PASSWORD = "Password";
@@ -50,4 +50,9 @@ public final class Constants {
     public static final String MQTT_USER_USERNAME = "admin";
     public static final String MQTT_USERNAME = "Username";
     public static final String RESET_CREDENTIALS = "reset_credentials";
+
+    public static final String PUBLISH_TIMEOUT = "Publish Timeout";
+    public static final String PUBLISH_TIMEOUT_DEFAULT = "0";
+    public static final String SUBSCRIBE_TIMEOUT = "Subscribe Timeout";
+    public static final String SUBSCRIBE_TIMEOUT_DEFAULT = "0";
 }

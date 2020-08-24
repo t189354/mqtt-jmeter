@@ -17,10 +17,10 @@
 package org.apache.jmeter.protocol.mqtt.control.gui;
 
 import org.apache.jmeter.gui.util.FilePanel;
-import org.apache.jmeter.gui.util.JLabeledRadioI18N;
 import org.apache.jmeter.gui.util.JSyntaxTextArea;
 import org.apache.jmeter.gui.util.JTextScrollPane;
 import org.apache.jmeter.gui.util.VerticalPanel;
+
 import org.apache.jmeter.protocol.mqtt.sampler.PublisherSampler;
 import org.apache.jmeter.protocol.mqtt.utilities.Constants;
 import org.apache.jmeter.protocol.mqtt.utilities.Utils;
@@ -28,7 +28,6 @@ import org.apache.jmeter.samplers.gui.AbstractSamplerGui;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jorphan.gui.JLabeledPasswordField;
 import org.apache.jorphan.gui.JLabeledTextField;
-import org.apache.jorphan.logging.LoggingManager;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -51,7 +50,6 @@ import java.awt.event.ActionListener;
 public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListener, ActionListener {
 
     private static final long serialVersionUID = 240L;
-    private static final org.apache.log.Logger log = LoggingManager.getLoggerForClass();
 
     private static final String[] QOS_TYPES_ITEMS = {Constants.MQTT_AT_MOST_ONCE, Constants.MQTT_AT_LEAST_ONCE, Constants.MQTT_EXACTLY_ONCE};
 
@@ -71,17 +69,18 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
     private final JCheckBox cleanSession = new JCheckBox(Constants.MQTT_CLEAN_SESSION, false);
 
     private final JLabeledTextField mqttKeepAlive = new JLabeledTextField(Constants.MQTT_KEEP_ALIVE);
+    private final JLabeledTextField publishTimeout = new JLabeledTextField(Constants.PUBLISH_TIMEOUT);
 
     private final JLabeledTextField mqttUser = new JLabeledTextField(Constants.MQTT_USERNAME);
     private final JLabeledTextField mqttPwd = new JLabeledPasswordField(Constants.MQTT_PASSWORD);
     private final JButton resetUserNameAndPassword = new JButton(Constants.MQTT_RESET_USERNAME_PASSWORD);
 
-    private final JLabeledRadioI18N typeQoSValue = new JLabeledRadioI18N(Constants.MQTT_QOS, QOS_TYPES_ITEMS, Constants.MQTT_AT_MOST_ONCE);
+    private final JLabeledRadioI18N typeQoSValue = new JLabeledRadioI18N("Quality of Service:", QOS_TYPES_ITEMS, Constants.MQTT_AT_MOST_ONCE);
 
-    private final JLabeledRadioI18N typeClientValue = new JLabeledRadioI18N(Constants.MQTT_CLIENT_TYPES, CLIENT_TYPES_ITEMS,
+    private final JLabeledRadioI18N typeClientValue = new JLabeledRadioI18N("Client Type:", CLIENT_TYPES_ITEMS,
             Constants.MQTT_BLOCKING_CLIENT);
 
-    private final JLabeledRadioI18N messageInputValue = new JLabeledRadioI18N(Constants.MQTT_MESSAGE_INPUT_TYPE,
+    private final JLabeledRadioI18N messageInputValue = new JLabeledRadioI18N("Message Input Type:",
             MESSAGE_INPUT_TYPE,
             Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT);
 
@@ -138,6 +137,7 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
         sampler.setMessageRetained(retained.isSelected());
         sampler.setCleanSession(cleanSession.isSelected());
         sampler.setKeepAlive(mqttKeepAlive.getText());
+        sampler.setPublishTimeout(publishTimeout.getText());
         sampler.setUsername(mqttUser.getText());
         sampler.setPassword(mqttPwd.getText());
         sampler.setQOS(typeQoSValue.getText());
@@ -171,6 +171,7 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
         ControlPanel.add(retained);
         ControlPanel.add(cleanSession);
         ControlPanel.add(createKeepAlivePane());
+        ControlPanel.add(createTimeoutPane());
         ControlPanel.add(createAuthPane());
         ControlPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.gray),
                 "Connection Info"));
@@ -251,6 +252,7 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
         retained.setSelected(sampler.isMessageRetained());
         cleanSession.setSelected(sampler.isCleanSession());
         mqttKeepAlive.setText(Integer.toString(sampler.getKeepAlive()));
+        publishTimeout.setText(Integer.toString(sampler.getPublishTimeout()));
         mqttUser.setText(sampler.getUsername());
         mqttPwd.setText(sampler.getPassword());
         typeQoSValue.setText(sampler.getQOS());
@@ -308,6 +310,23 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
         TPanel.add(Box.createHorizontalStrut(100));
         panel.add(TPanel);
         mqttKeepAlive.setText(Constants.MQTT_KEEP_ALIVE_DEFAULT);
+        return panel;
+    }
+
+    /**
+     * Creates the mqtt timeout panel.
+     *
+     * @return The timeout panel.
+     */
+    private JPanel createTimeoutPane() {
+        JPanel panel = new VerticalPanel(); //new BorderLayout(3, 0)
+        this.publishTimeout.setLayout((new BoxLayout(publishTimeout, BoxLayout.X_AXIS)));
+        panel.add(publishTimeout);
+        JPanel TPanel = new JPanel();
+        TPanel.setLayout(new BoxLayout(TPanel, BoxLayout.X_AXIS));
+        TPanel.add(Box.createHorizontalStrut(100));
+        panel.add(TPanel);
+        publishTimeout.setText(Constants.PUBLISH_TIMEOUT_DEFAULT);
         return panel;
     }
 
