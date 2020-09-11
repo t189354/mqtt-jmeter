@@ -57,7 +57,7 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
     private static final String[] CLIENT_TYPES_ITEMS = {Constants.MQTT_BLOCKING_CLIENT, Constants
             .MQTT_ASYNC_CLIENT};
 
-    private static final String[] MESSAGE_INPUT_TYPE = {Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT, Constants.MQTT_MESSAGE_INPUT_TYPE_FILE};
+    private static final String[] MESSAGE_INPUT_TYPE = {Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT, Constants.MQTT_MESSAGE_INPUT_TYPE_FILE, Constants.MQTT_MESSAGE_INPUT_TYPE_VAR};
 
     private final JLabeledTextField brokerUrlField = new JLabeledTextField(Constants.MQTT_PROVIDER_URL);
     private final JLabeledTextField clientId = new JLabeledTextField(Constants.MQTT_CLIENT_ID);
@@ -87,10 +87,13 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
     private final JLabel textArea = new JLabel(Constants.MQTT_TEXT_AREA);
     private final JSyntaxTextArea textMessage = new JSyntaxTextArea(10, 50);
     private final JTextScrollPane textPanel = new JTextScrollPane(textMessage);
-
     private final FilePanel fileChooser = new FilePanel(Constants.MQTT_FILE, "*");
+    private final JLabeledTextField variableChooser = new JLabeledTextField(Constants.VARIABLE);
 
 
+    /**
+     * MQTTPublisherGui
+     */
     public MQTTPublisherGui() {
         init();
     }
@@ -143,10 +146,16 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
         sampler.setQOS(typeQoSValue.getText());
         sampler.setClientType(typeClientValue.getText());
         sampler.setMessageInputType(messageInputValue.getText());
-        if (messageInputValue.getText().equals(Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT)) {
-            sampler.setMessageValue(textMessage.getText());
-        } else if (messageInputValue.getText().equals(Constants.MQTT_MESSAGE_INPUT_TYPE_FILE)) {
-            sampler.setMessageValue(fileChooser.getFilename());
+        switch(messageInputValue.getText()) {
+            case Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT:
+                sampler.setMessageValue(textMessage.getText());
+                break;
+            case Constants.MQTT_MESSAGE_INPUT_TYPE_VAR:
+                sampler.setMessageValue(variableChooser.getText());
+                break;
+            case Constants.MQTT_MESSAGE_INPUT_TYPE_FILE:
+                sampler.setMessageValue(fileChooser.getFilename());
+                break;
         }
     }
 
@@ -190,15 +199,21 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
         messageInputValue.setLayout(new BoxLayout(messageInputValue, BoxLayout.X_AXIS));
         contentPanel.add(messageInputValue);
 
-        JPanel filePanel = new JPanel(new BorderLayout());
-        filePanel.add(this.fileChooser, BorderLayout.CENTER);
-        contentPanel.add(filePanel);
-
         // Text input panel
         JPanel messageContentPanel = new JPanel(new BorderLayout());
-        messageContentPanel.add(this.textArea, BorderLayout.NORTH);
-        messageContentPanel.add(this.textPanel, BorderLayout.CENTER);
+        messageContentPanel.add(textArea, BorderLayout.NORTH);
+        messageContentPanel.add(textPanel, BorderLayout.CENTER);
         contentPanel.add(messageContentPanel);
+
+        // File chooser panel
+        JPanel filePanel = new JPanel(new BorderLayout());
+        filePanel.add(fileChooser, BorderLayout.CENTER);
+        contentPanel.add(filePanel);
+
+        // Variable chooser panel
+        JPanel variablePanel = new JPanel(new BorderLayout());
+        variablePanel.add(variableChooser, BorderLayout.CENTER);
+        contentPanel.add(variablePanel);
 
         contentPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.gray), "Content"));
         mainPanel.add(contentPanel);
@@ -211,9 +226,10 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
         messageInputValue.addChangeListener(this);
         brokerUrlField.setText(Constants.MQTT_URL_DEFAULT);
 
-        this.textArea.setVisible(true);
-        this.textPanel.setVisible(true);
-        this.fileChooser.setVisible(false);
+        textArea.setVisible(true);
+        textPanel.setVisible(true);
+        fileChooser.setVisible(false);
+        variableChooser.setVisible(false);
 
     }
 
@@ -261,14 +277,24 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
 
         if (sampler.getMessageInputType().equals(Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT)) {
             textMessage.setText(sampler.getMessageValue());
-            this.textArea.setVisible(true);
-            this.textPanel.setVisible(true);
-            this.fileChooser.setVisible(false);
-        } else if (sampler.getMessageInputType().equals(Constants.MQTT_MESSAGE_INPUT_TYPE_FILE)) {
+            textArea.setVisible(true);
+            textPanel.setVisible(true);
+            fileChooser.setVisible(false);
+            variableChooser.setVisible(false);
+        }
+        else if (sampler.getMessageInputType().equals(Constants.MQTT_MESSAGE_INPUT_TYPE_FILE)) {
+            fileChooser.setVisible(true);
             fileChooser.setFilename(sampler.getMessageValue());
-            this.textArea.setVisible(false);
-            this.textPanel.setVisible(false);
-            this.fileChooser.setVisible(true);
+            textArea.setVisible(false);
+            textPanel.setVisible(false);
+            variableChooser.setVisible(false);
+        }
+        else if (sampler.getMessageInputType().equals(Constants.MQTT_MESSAGE_INPUT_TYPE_VAR)) {
+            variableChooser.setVisible(true);
+            variableChooser.setText(sampler.getMessageValue());
+            textArea.setVisible(false);
+            textPanel.setVisible(false);
+            fileChooser.setVisible(false);
         }
     }
 
@@ -349,13 +375,20 @@ public class MQTTPublisherGui extends AbstractSamplerGui implements ChangeListen
     @Override
     public void stateChanged(ChangeEvent e) {
         if (Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT.equals(messageInputValue.getText())) {
-            this.textArea.setVisible(true);
-            this.textPanel.setVisible(true);
-            this.fileChooser.setVisible(false);
+            textArea.setVisible(true);
+            textPanel.setVisible(true);
+            fileChooser.setVisible(false);
+            variableChooser.setVisible(false);
         } else if (Constants.MQTT_MESSAGE_INPUT_TYPE_FILE.equals(messageInputValue.getText())) {
-            this.textArea.setVisible(false);
-            this.textPanel.setVisible(false);
-            this.fileChooser.setVisible(true);
+            fileChooser.setVisible(true);
+            textArea.setVisible(false);
+            textPanel.setVisible(false);
+            variableChooser.setVisible(false);
+        } else if (Constants.MQTT_MESSAGE_INPUT_TYPE_VAR.equals(messageInputValue.getText())) {
+            variableChooser.setVisible(true);
+            textArea.setVisible(false);
+            textPanel.setVisible(false);
+            fileChooser.setVisible(false);
         }
     }
 }

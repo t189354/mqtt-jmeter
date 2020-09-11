@@ -288,7 +288,7 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
                 qos = 0;
             }
 
-            byte[] publishMessage;
+            byte[] publishMessage = null;
             if (Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT.equals(messageInputType)) {
                 publishMessage = getMessageValue().getBytes();
             } else if (Constants.MQTT_MESSAGE_INPUT_TYPE_FILE.equals(messageInputType)) {
@@ -296,18 +296,31 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
                 String filename = getMessageValue();
                 if (log.isDebugEnabled()) log.debug(getClientId() + " reading file: " + filename);
                 publishMessage = FileUtils.readFileToByteArray(new File(filename));
+            } else if (Constants.MQTT_MESSAGE_INPUT_TYPE_VAR.equals(messageInputType)) {
+                String varName = getMessageValue();
+                if (log.isDebugEnabled()) log.debug(getClientId() + " using variable: " + varName);
+                byte[] varValue = (byte[]) getThreadContext().getVariables().getObject(varName);
+                if (varValue != null && varValue.length > 0) {
+                    publishMessage = varValue;
+                }
+                else {
+                    result.setSuccessful(true);
+                    result.setResponseCode("SKIP");
+                }
             } else {
                 publishMessage = new byte[0];
             }
 
-            long durationNanos = client.publish(topicName, qos, publishMessage, retained, timeout);
-            result.setSuccessful(true);
-            result.setLatency(durationNanos / 1000000);
-            result.setBytes(publishMessage.length);
-            result.setBodySize(publishMessage.length);
-            result.sampleEnd(); // stop stopwatch
-            result.setResponseMessage("Sent " + publishedMessageCount.incrementAndGet() + " messages total");
-            result.setResponseCode("OK");
+            if (publishMessage != null) {
+                long durationNanos = client.publish(topicName, qos, publishMessage, retained, timeout);
+                result.setSuccessful(true);
+                result.setLatency(durationNanos / 1000000);
+                result.setBytes(publishMessage.length);
+                result.setBodySize(publishMessage.length);
+                result.sampleEnd(); // stop stopwatch
+                result.setResponseMessage("Sent " + publishedMessageCount.incrementAndGet() + " messages total");
+                result.setResponseCode("OK");
+            }
             return result;
         } catch (MqttException | IOException e) {
             result.sampleEnd(); // stop stopwatch

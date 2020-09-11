@@ -36,6 +36,7 @@ public final class Constants {
 //    public static final String MQTT_MESSAGE_INPUT_TYPE = "mqtt_message_input_type";
     public static final String MQTT_MESSAGE_INPUT_TYPE_FILE = "mqtt_message_input_type_file";
     public static final String MQTT_MESSAGE_INPUT_TYPE_TEXT = "mqtt_message_input_type_text";
+    public static final String MQTT_MESSAGE_INPUT_TYPE_VAR = "mqtt_message_input_type_var";
     public static final String MQTT_PASSWORD = "Password";
     public static final String MQTT_PROVIDER_URL = "Provider URL";
     public static final String MQTT_PUBLISHER_TITLE = "MQTT Publisher";
@@ -55,4 +56,6 @@ public final class Constants {
     public static final String PUBLISH_TIMEOUT_DEFAULT = "0";
     public static final String SUBSCRIBE_TIMEOUT = "Subscribe Timeout";
     public static final String SUBSCRIBE_TIMEOUT_DEFAULT = "0";
+    public static final String VARIABLE = "Variable";
+
 }
