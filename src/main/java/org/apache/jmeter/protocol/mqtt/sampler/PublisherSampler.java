@@ -292,7 +292,6 @@ public class PublisherSampler extends AbstractSampler implements TestStateListen
             if (Constants.MQTT_MESSAGE_INPUT_TYPE_TEXT.equals(messageInputType)) {
                 publishMessage = getMessageValue().getBytes();
             } else if (Constants.MQTT_MESSAGE_INPUT_TYPE_FILE.equals(messageInputType)) {
-                //TODO how to handle if file not available (what happens @end of CSV
                 String filename = getMessageValue();
                 if (log.isDebugEnabled()) log.debug(getClientId() + " reading file: " + filename);
                 publishMessage = FileUtils.readFileToByteArray(new File(filename));
